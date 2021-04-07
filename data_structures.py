@@ -10,6 +10,7 @@ class Company(object):
         'stock_exchange' : 'Stock-Exchange Key',
         'description' : 'Free-Text Description of Company'
     }
+    metadata_inv = {v: k for k, v in metadata.items()}
 
     def __init__(self, name='', ticker='', stock_exchange='', description=''):
 

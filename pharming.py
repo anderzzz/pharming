@@ -3,7 +3,7 @@
 '''
 import sys
 import json
-from tinydb import TinyDB, Query
+import pandas as pd
 from pathlib import Path
 from datetime import datetime
 from argparse import ArgumentParser
@@ -14,6 +14,12 @@ from db_ops import db_factory
 PHARMING_META = 'pharming_root.json'
 
 class PharmingNotInitializedException(Exception):
+    pass
+
+class PharmingCMDLogicException(Exception):
+    pass
+
+class PharmingFileKeyException(Exception):
     pass
 
 def parse_cmd(args):
@@ -70,8 +76,20 @@ def insert_company_manual(db):
 
     db.insert_all(new_comps)
 
-def insert_company_csv():
-    pass
+def insert_company_csv(db, csv_file):
+    '''Bla bla
+
+    '''
+    df = pd.read_csv(csv_file)
+    if not set(Company.metadata_inv.keys()).issubset(set(df.columns)):
+        raise PharmingFileKeyException('CSV column headers not containing mandatory company headers: {}'.format(list(Company.metadata_inv.keys())))
+
+    new_comps = []
+    for index, data in df.iterrows():
+        dd = {Company.metadata_inv[key]: value for key, value in dict(data).items()}
+        new_comps.append(Company(**dd))
+
+    db.insert_all(new_comps)
 
 def main():
 
@@ -97,16 +115,19 @@ def main():
     # Get database handle up and running
     #
     db = db_factory.create('tiny db', pharming_root['root_dir'])
-#    db = TinyDB('{}/{}'.format(pharming_root['root_dir'], PHARMING_DB))
 
     #
-    # Manual inputting of data
+    # Inputting of company data
     #
-    if hasattr(cmd_data, 'insert_company_manual'):
-        insert_company_manual(db)
+    if any(['insert_company' in cmd_key for cmd_key in cmd_data.__dict__]):
+        if cmd_data.insert_company_manual:
+            insert_company_manual(db)
 
-    elif hasattr(cmd_data, 'insert_company_csv'):
-        pass
+        elif not cmd_data.insert_company_csv is None:
+            insert_company_csv(db, cmd_data.insert_company_csv)
+
+        else:
+            raise PharmingCMDLogicException('The command to `insert_company` not provided with valid option')
 
     print (db.handle.all())
 

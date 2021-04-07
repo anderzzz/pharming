@@ -18,5 +18,5 @@ class Company(object):
         self.stock_exchange = stock_exchange
         self.description = description
 
-    def export_metadata(self):
+    def dict(self):
         return dict([(key, getattr(self, key)) for key in self.metadata.keys()])

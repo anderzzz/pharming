@@ -9,9 +9,9 @@ from datetime import datetime
 from argparse import ArgumentParser
 
 from data_structures import Company
+from db_ops import db_factory
 
 PHARMING_META = 'pharming_root.json'
-PHARMING_DB = 'pharming_db.json'
 
 class PharmingNotInitializedException(Exception):
     pass
@@ -68,7 +68,7 @@ def insert_company_manual(db):
         if jano == 'y' or jano == 'Y':
             break
 
-    INSERT TO TINY DB
+    db.insert_all(new_comps)
 
 def insert_company_csv():
     pass
@@ -92,7 +92,12 @@ def main():
     if pharming_root is None:
         raise PharmingNotInitializedException('Did not find root file {}. Did you run the `initialize` command?')
     Path(pharming_root['root_dir']).mkdir(parents=True, exist_ok=True)
-    db = TinyDB('{}/{}'.format(pharming_root['root_dir'], PHARMING_DB))
+
+    #
+    # Get database handle up and running
+    #
+    db = db_factory.create('tiny db', pharming_root['root_dir'])
+#    db = TinyDB('{}/{}'.format(pharming_root['root_dir'], PHARMING_DB))
 
     #
     # Manual inputting of data
@@ -103,11 +108,7 @@ def main():
     elif hasattr(cmd_data, 'insert_company_csv'):
         pass
 
-    db.insert({'aa':111, 'bb':222, 'pp':'hello dude'})
-    print (db.all())
-    pp = Query()
-    db.update({'aa':999}, pp.bb==222)
-    print (db.all())
+    print (db.handle.all())
 
 
 if __name__ == '__main__':

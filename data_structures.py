@@ -57,6 +57,7 @@ class TimeSeries(object):
         self.tseries = pd.read_json(*args, **kwargs)
 
     def to_json(self, *args, **kwargs):
+        return self.tseries.to_json(*args, **kwargs)
 
 
 def test_1():

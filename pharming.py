@@ -5,6 +5,7 @@ import sys
 import json
 import pandas as pd
 from pathlib import Path
+from shutil import rmtree
 from datetime import datetime
 from argparse import ArgumentParser
 
@@ -27,13 +28,21 @@ def parse_cmd(args):
     parser = ArgumentParser(prog='pharming')
     subparsers = parser.add_subparsers(help='sub-command help')
 
+    parser_reset = subparsers.add_parser('reset',
+                                         help='Reset a pharming system')
+    parser_reset.add_argument('--root-name',
+                              type=str,
+                              default=None,
+                              dest='reset_root_name',
+                              help='Name of project root to reset')
+
     parser_init = subparsers.add_parser('initialize',
                                         help='Initialize the pharming system')
     parser_init.add_argument('--root-name',
                              type=str,
                              default=None,
                              dest='init_root_name',
-                             help='Name of project root. If it exists, then overwritten')
+                             help='Name of project root. If not existing, then created')
 
     parser_insert_comp = subparsers.add_parser('insert_company',
                                                help='Insert company meta data')
@@ -74,7 +83,7 @@ def insert_company_manual(db):
         if jano == 'y' or jano == 'Y':
             break
 
-    db.insert_all(new_comps)
+    db.insert_all_(new_comps)
 
 def insert_company_csv(db, csv_file):
     '''Bla bla
@@ -89,11 +98,17 @@ def insert_company_csv(db, csv_file):
         dd = {Company.metadata_inv[key]: value for key, value in dict(data).items()}
         new_comps.append(Company(**dd))
 
-    db.insert_all(new_comps)
+    db.insert_all_(new_comps)
 
 def main():
 
     cmd_data = parse_cmd(sys.argv[1:])
+
+    #
+    # Reset root directory
+    #
+    if hasattr(cmd_data, 'reset_root_name'):
+        rmtree(cmd_data.reset_root_name)
 
     #
     # Ensure the root directory and db exist, and retrieve metadata
@@ -114,7 +129,7 @@ def main():
     #
     # Get database handle up and running
     #
-    db = db_factory.create('tiny db', pharming_root['root_dir'])
+    db = db_factory.create('tiny db', pharming_root['root_dir'], force_uniqueness=True)
 
     #
     # Inputting of company data

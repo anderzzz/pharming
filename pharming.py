@@ -14,6 +14,7 @@ from web_ops import web_factory
 from db_ops import db_factory
 
 PHARMING_META = 'pharming_root.json'
+WEBACCESS_META = 'doorknobs.json'
 
 class PharmingNotInitializedException(Exception):
     pass
@@ -22,6 +23,9 @@ class PharmingCMDLogicException(Exception):
     pass
 
 class PharmingFileKeyException(Exception):
+    pass
+
+class PharmingWebAccessException(Exception):
     pass
 
 def parse_cmd(args):
@@ -87,6 +91,18 @@ def check_pharming_root():
     except FileNotFoundError:
         return None
 
+def read_web_doorknob(source):
+    try:
+        f_web = open(WEBACCESS_META, 'r')
+    except:
+        raise PharmingWebAccessException('Unable to find web access file {}'.format(WEBACCESS_META))
+
+    dd = json.load(f_web)
+    try:
+        return dd[source]
+    except KeyError:
+        raise PharmingWebAccessException('Unable to find web access meta data for {}'.format(source))
+
 def insert_company_manual(db):
     '''Bla bla
 
@@ -120,11 +136,14 @@ def insert_company_csv(db, csv_file):
 
     db.insert_all_(new_comps)
 
-def download_ts(db):
+def download_ts(db, web_accessors):
     '''Bla bla
 
     '''
-    web_handle = web_factory.create('marketstack')
+    web_handle = web_factory.create('marketstack', **web_accessors)
+    web_handle.access_historical('ROG.XSWX', date_from='2021-04-01', date_to='2021-04-07')
+    print (web_handle.payload)
+    raise RuntimeError
 
 
 def main():
@@ -176,15 +195,16 @@ def main():
     #
     # Get database handle up and running for time-series data
     #
-    db_ts = db_factory('tiny db', pharming_root['root_dir'],
-                       db_file_name='pharming_ts_db.json',
-                       force_uniqueness=True)
+    db_ts = db_factory.create('tiny db', pharming_root['root_dir'],
+                              db_file_name='pharming_ts_db.json',
+                              force_uniqueness=True)
 
     #
     # Download with time-series data
     #
     if hasattr(cmd_data, 'download_ts_web_source'):
-        download_ts(db_ts)
+        web_accessors = read_web_doorknob(cmd_data.download_ts_web_source)
+        download_ts(db_ts, web_accessors)
 
 
 if __name__ == '__main__':

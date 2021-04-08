@@ -10,6 +10,7 @@ from datetime import datetime
 from argparse import ArgumentParser
 
 from data_structures import Company
+from web_ops import web_factory
 from db_ops import db_factory
 
 PHARMING_META = 'pharming_root.json'
@@ -56,6 +57,25 @@ def parse_cmd(args):
                                     dest='insert_company_csv',
                                     help='Path to CSV file with company data to be inserted')
 
+    parser_download_ts = subparsers.add_parser('download_ts',
+                                               help='Download company time-series data from web')
+    parser_download_ts.add_argument('--web-source',
+                                    type=str,
+                                    dest='download_ts_web_source',
+                                    help='Label for web source to download data from')
+    parser_download_ts.add_argument('--time-range',
+                                    type=str,
+                                    dest='download_ts_time_range',
+                                    help='Time range for which to retrieve data (YYYY-MM-DD,YYYY-MM-DD)')
+    parser_download_ts.add_argument('--company-set',
+                                    type=str,
+                                    dest='download_ts_company_set',
+                                    help='Set of companies to retrieve data for (ticker:stock-exchange); if unspecified, do for all')
+    parser_download_ts.add_argument('--ts-types',
+                                    type=str,
+                                    dest='download_ts_ts_types',
+                                    help='Types of time-series data to collect')
+
     cmd = parser.parse_args(args)
 
     return cmd
@@ -100,6 +120,13 @@ def insert_company_csv(db, csv_file):
 
     db.insert_all_(new_comps)
 
+def download_ts(db):
+    '''Bla bla
+
+    '''
+    web_handle = web_factory.create('marketstack')
+
+
 def main():
 
     cmd_data = parse_cmd(sys.argv[1:])
@@ -127,9 +154,11 @@ def main():
     Path(pharming_root['root_dir']).mkdir(parents=True, exist_ok=True)
 
     #
-    # Get database handle up and running
+    # Get database handle up and running for company meta data
     #
-    db = db_factory.create('tiny db', pharming_root['root_dir'], force_uniqueness=True)
+    db = db_factory.create('tiny db', pharming_root['root_dir'],
+                           db_file_name='pharming_comp_db.json',
+                           force_uniqueness=True)
 
     #
     # Inputting of company data
@@ -144,7 +173,18 @@ def main():
         else:
             raise PharmingCMDLogicException('The command to `insert_company` not provided with valid option')
 
-    print (db.handle.all())
+    #
+    # Get database handle up and running for time-series data
+    #
+    db_ts = db_factory('tiny db', pharming_root['root_dir'],
+                       db_file_name='pharming_ts_db.json',
+                       force_uniqueness=True)
+
+    #
+    # Download with time-series data
+    #
+    if hasattr(cmd_data, 'download_ts_web_source'):
+        download_ts(db_ts)
 
 
 if __name__ == '__main__':

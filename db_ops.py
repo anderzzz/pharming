@@ -13,8 +13,8 @@ class DBOpsTinyDB(object):
     '''Bla bla
 
     '''
-    def __init__(self, root_dir, force_uniqueness=True, append_date=True, append_author=None):
-        self.db_file_name = 'pharming_db.json'
+    def __init__(self, root_dir, db_file_name='db.json', force_uniqueness=True, append_date=True, append_author=None):
+        self.db_file_name = db_file_name
         self.root_dir = root_dir
         self.handle = TinyDB('{}/{}'.format(self.root_dir, self.db_file_name))
 
@@ -62,8 +62,10 @@ class DBOpsTinyDBBuilder(object):
     def __init__(self):
         self._instance = None
 
-    def __call__(self, root_dir, force_uniqueness=True):
-        self._instance = DBOpsTinyDB(root_dir=root_dir, force_uniqueness=force_uniqueness)
+    def __call__(self, root_dir, db_file_name='db.json', force_uniqueness=True):
+        self._instance = DBOpsTinyDB(root_dir=root_dir,
+                                     db_file_name=db_file_name,
+                                     force_uniqueness=force_uniqueness)
         return self._instance
 
 class DBOpsFactory(object):

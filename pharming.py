@@ -9,7 +9,7 @@ from shutil import rmtree
 from datetime import datetime
 from argparse import ArgumentParser
 
-from data_structures import Company
+from data_structures import Company, TimeSeriesStockPrice, TimeSeriesStockTrade
 from web_ops import web_factory
 from db_ops import db_factory
 
@@ -26,6 +26,9 @@ class PharmingFileKeyException(Exception):
     pass
 
 class PharmingWebAccessException(Exception):
+    pass
+
+class PharmingDownloadQueryException(Exception):
     pass
 
 def parse_cmd(args):
@@ -136,19 +139,51 @@ def insert_company_csv(db, csv_file):
 
     db.insert_all_(new_comps)
 
-def download_ts(db, web_accessors):
+def check_download_cmds(db, company_set, time_range, ts_type):
     '''Bla bla
 
     '''
-    web_handle = web_factory.create('marketstack', **web_accessors)
-    web_handle.access_historical('ROG.XSWX', date_from='2021-04-01', date_to='2021-04-07')
-    print (web_handle.payload)
-    raise RuntimeError
+    #
+    # Check that company set is valid
+    companies = company_set.split(',')
+    for company in companies:
+        if len(db.query_symbol(company)) == 0:
+            raise PharmingDownloadQueryException('Company symbol {} not in company metadata database'.format(company))
 
+    #
+    # Check that date range is of expect format
+    two_dates = time_range.split(',')
+    if len(two_dates) != 2:
+        raise PharmingDownloadQueryException('Did not find two dates separated by comma in time range: {}'.format(time_range))
+    else:
+        try:
+            datetime.strptime(two_dates[0], '%Y-%m-%d')
+            datetime.strptime(two_dates[1], '%Y-%m-%d')
+        except ValueError:
+            raise PharmingDownloadQueryException('Dates in time range not comforming to YYYY-MM-DD format')
 
-def main():
+    #
+    # Check that time-series types are valid metadata_y_value
+    pass
 
-    cmd_data = parse_cmd(sys.argv[1:])
+def download_ts(db_ts, web_handle, company_set, date_from, date_to, ts_types):
+    '''Bla bla
+
+    '''
+    tss = {}
+    for company_symbol in company_set:
+        web_handle.access_historical(company_symbol, date_from=date_from, date_to=date_to)
+
+        ts_price = TimeSeriesStockPrice(name='webapi_stock_price')
+        ts_price.populate(web_handle.payload_data)
+
+        db_ts.insert_one_(ts_price, symbol=company_symbol)
+
+    return tss
+
+def main(args):
+
+    cmd_data = parse_cmd(args)
 
     #
     # Reset root directory
@@ -195,17 +230,50 @@ def main():
     #
     # Get database handle up and running for time-series data
     #
-    db_ts = db_factory.create('tiny db', pharming_root['root_dir'],
-                              db_file_name='pharming_ts_db.json',
-                              force_uniqueness=True)
+#    db_ts = db_factory.create('tiny db', pharming_root['root_dir'],
+#                              db_file_name='pharming_ts_db.json',
+#                              force_uniqueness=True)
+#    db_ts = db_factory.create('file hierarchy', pharming_root['root_dir'])
+    db_ts = db_factory.create('file hierarchy', root_dir=pharming_root['root_dir'])
 
     #
     # Download with time-series data
     #
     if hasattr(cmd_data, 'download_ts_web_source'):
         web_accessors = read_web_doorknob(cmd_data.download_ts_web_source)
-        download_ts(db_ts, web_accessors)
+        check_download_cmds(db,
+                            cmd_data.download_ts_company_set,
+                            cmd_data.download_ts_time_range,
+                            cmd_data.download_ts_ts_types)
+
+        ts_types = cmd_data.download_ts_ts_types.split(',')
+        print (web_accessors)
+        web_handle = web_factory.create('marketstack',
+                                        ts_types,
+                                        **web_accessors)
+
+        date_from = cmd_data.download_ts_time_range.split(',')[0]
+        date_to = cmd_data.download_ts_time_range.split(',')[1]
+        company_set = cmd_data.download_ts_company_set.split(',')
+        download_ts(db_ts, web_handle,
+                    company_set,
+                    date_from, date_to,
+                    ts_types)
+
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])
+
+def test1():
+    cmdline = "download_ts --web-source=marketstack --time-range=2021-03-27,2021-04-06 --company-set=ROG.XSWX --ts-types=open"
+    cmd_argv = cmdline.split(' ')
+    main(cmd_argv)
+
+def test2():
+    cmdline = "download_ts --web-source=marketstack --time-range=2021-04-04,2021-04-08 --company-set=ROG.XSWX,NOVN.XSWX --ts-types=open"
+    cmd_argv = cmdline.split(' ')
+    main(cmd_argv)
+
+
+test2()

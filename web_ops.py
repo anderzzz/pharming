@@ -14,7 +14,9 @@ class _WebOps(object):
     def __init__(self, base_url, api_key):
         self.base_url = base_url
         self.api_key = api_key
-        self.payload = None
+        self.payload_data = None
+        self.payload_meta = None
+        self.patload_raw = None
 
     def _get(self, url, params):
         return requests.get(url, params)
@@ -23,11 +25,18 @@ class WebOpsMarketstack(_WebOps):
     '''Bla bla
 
     '''
-    def __init__(self, base_url, api_key, limit=1000):
+    data_key_map = {'open' : 'price_open',
+                    'high' : 'price_high',
+                    'low' : 'price_low',
+                    'close' : 'price_close',
+                    'volume' : 'trade_volume'}
+
+    def __init__(self, base_url, api_key, limit=1000, ts_types=None):
         super().__init__(base_url, api_key)
         self.limit = limit
         self.base_params = {'access_key' : self.api_key,
                             'limit' : self.limit}
+        self.ts_types = ts_types
 
     def access_historical(self, symbol, date_from, date_to, offset=0):
         self._get_historical(symbol, date_from, date_to, offset)
@@ -45,7 +54,7 @@ class WebOpsMarketstack(_WebOps):
 
         valid_flag = self._validate_(response)
         if valid_flag is True:
-            self.payload = response.json()
+            self.payload_raw = response.json()
         else:
             del params['access_key']
             raise WebOpsAccessException('{} URL:{} with parameters: {}'.format(valid_flag, url, params))
@@ -65,7 +74,22 @@ class WebOpsMarketstack(_WebOps):
             return 'Status code {}'.format(response.status_code)
 
     def _payload_transform_eod(self):
-        pass
+        self.payload_meta = self.payload_raw['pagination']
+        self.payload_data = {}
+        for data_row in self.payload_raw['data']:
+            t_value = data_row['date'].split('+')[0]
+
+            for key_raw, values in data_row.items():
+                if key_raw in self.data_key_map:
+
+                    # Here the time-series key is enforced for the data payload
+                    key_new = (t_value, self.data_key_map[key_raw])
+
+                    if self.ts_types is None:
+                        self.payload_data[key_new] = values
+
+                    elif self.data_key_map[key_raw] in self.ts_types:
+                        self.payload_data[key_new] = values
 
 class WebOpsMarketstackBuilder(object):
     '''Bla bla
@@ -74,8 +98,8 @@ class WebOpsMarketstackBuilder(object):
     def __init__(self):
         self._instance = None
 
-    def __call__(self, base_url, api_key, **_kwargs):
-        self._instance = WebOpsMarketstack(base_url, api_key)
+    def __call__(self, base_url, api_key, ts_types, **_kwargs):
+        self._instance = WebOpsMarketstack(base_url, api_key, ts_types)
         return self._instance
 
 class WebOpsFactory(object):
@@ -95,7 +119,7 @@ class WebOpsFactory(object):
     def key(self):
         return self._builders.keys()
 
-    def create(self, key, **kwargs):
+    def create(self, key, ts_types=None, **kwargs):
         '''Method to create a web api operations method
 
         '''
@@ -103,7 +127,7 @@ class WebOpsFactory(object):
             builder = self._builders[key]
         except KeyError:
             raise ValueError('Unregistered web api operations builder: {}'.format(key))
-        return builder(**kwargs)
+        return builder(ts_types=ts_types, **kwargs)
 
 
 web_factory = WebOpsFactory()

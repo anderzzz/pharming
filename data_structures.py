@@ -119,8 +119,8 @@ class TimeSeriesStockTrade(TimeSeries):
     metadata_y_value = {
         'trade_volume' : 'Raw volume of stock trade'
     }
-    def __init__(self, symbol, name=''):
-        super().__init__(name=name, symbol=symbol)
+    def __init__(self, name, source=''):
+        super().__init__(name=name, source=source)
         self.datatype = 'timeseries_stocktrade'
 
     def populate(self, data, *args, **kwargs):

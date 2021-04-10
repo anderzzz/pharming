@@ -78,10 +78,6 @@ def parse_cmd(args):
                                     type=str,
                                     dest='download_ts_company_set',
                                     help='Set of companies to retrieve data for (ticker:stock-exchange); if unspecified, do for all')
-    parser_download_ts.add_argument('--ts-types',
-                                    type=str,
-                                    dest='download_ts_ts_types',
-                                    help='Types of time-series data to collect')
 
     cmd = parser.parse_args(args)
 
@@ -166,7 +162,7 @@ def check_download_cmds(db, company_set, time_range, ts_type):
     # Check that time-series types are valid metadata_y_value
     pass
 
-def download_ts(db_ts, web_handle, company_set, date_from, date_to, ts_types):
+def download_ts(db_ts, web_handle, company_set, date_from, date_to):
     '''Bla bla
 
     '''
@@ -176,10 +172,12 @@ def download_ts(db_ts, web_handle, company_set, date_from, date_to, ts_types):
 
         ts_price = TimeSeriesStockPrice(name='webapi_stock_price')
         ts_price.populate(web_handle.payload_data)
-
         db_ts.insert_one_(ts_price, symbol=company_symbol)
 
-    return tss
+        ts_trade = TimeSeriesStockTrade(name='webapi_trade')
+        ts_trade.populate(web_handle.payload_data)
+        db_ts.insert_one_(ts_trade, symbol=company_symbol)
+
 
 def main(args):
 
@@ -247,7 +245,6 @@ def main(args):
                             cmd_data.download_ts_ts_types)
 
         ts_types = cmd_data.download_ts_ts_types.split(',')
-        print (web_accessors)
         web_handle = web_factory.create('marketstack',
                                         ts_types,
                                         **web_accessors)
@@ -257,8 +254,7 @@ def main(args):
         company_set = cmd_data.download_ts_company_set.split(',')
         download_ts(db_ts, web_handle,
                     company_set,
-                    date_from, date_to,
-                    ts_types)
+                    date_from, date_to)
 
 
 
@@ -266,12 +262,12 @@ if __name__ == '__main__':
     main(sys.argv[1:])
 
 def test1():
-    cmdline = "download_ts --web-source=marketstack --time-range=2021-03-27,2021-04-06 --company-set=ROG.XSWX --ts-types=open"
+    cmdline = "download_ts --web-source=marketstack --time-range=2021-03-27,2021-04-06 --company-set=ROG.XSWX"
     cmd_argv = cmdline.split(' ')
     main(cmd_argv)
 
 def test2():
-    cmdline = "download_ts --web-source=marketstack --time-range=2021-04-04,2021-04-08 --company-set=ROG.XSWX,NOVN.XSWX --ts-types=open"
+    cmdline = "download_ts --web-source=marketstack --time-range=2021-03-01,2021-04-08 --company-set=ROG.XSWX,NOVN.XSWX"
     cmd_argv = cmdline.split(' ')
     main(cmd_argv)
 
